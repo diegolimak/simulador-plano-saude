@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Simulações de Plano de Saúde</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --blue-dark:  #0F2C5E;
+    --blue-mid:   #1A4A8A;
+    --blue:       #2563C0;
+    --blue-light: #3B82D4;
+    --blue-pale:  #EEF4FF;
+    --gold:       #C9A227;
+    --silver:     #7A8FA0;
+    --bronze-c:   #B06A35;
+    --green:      #1A8A4A;
+    --bg:         #F0F4FB;
+    --white:      #FFFFFF;
+    --text-dark:  #0F1E3C;
+    --text-mid:   #3A4A6A;
+    --text-light: #7A8AAA;
+    --border:     #DDE5F4;
+    --shadow:     0 4px 24px rgba(15,44,94,0.09);
+    --shadow-lg:  0 8px 40px rgba(15,44,94,0.14);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text-dark); min-height: 100vh; }
+
+  /* TOPBAR */
+  .topbar {
+    background: var(--blue-dark); height: 62px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 16px rgba(15,44,94,0.28);
+  }
+  .topbar-logo { display: flex; align-items: center; gap: 12px; }
+  .topbar-logo img { height: 34px; filter: brightness(0) invert(1); }
+  .topbar-logo-fb { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 18px; color: white; display: none; }
+  .topbar-title { font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 0.05em; text-transform: uppercase; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .last-update { font-size: 12px; color: rgba(255,255,255,0.4); }
+  .btn-refresh {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+    color: white; border-radius: 8px; padding: 7px 14px;
+    font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-refresh:hover { background: rgba(255,255,255,0.18); }
+  .btn-refresh.loading .refresh-icon { animation: spin 0.8s linear infinite; display: inline-block; }
+
+  .page { max-width: 1200px; margin: 0 auto; padding: 36px 24px 80px; }
+
+  /* HEADER */
+  .page-header { margin-bottom: 32px; animation: fadeDown 0.5s ease both; }
+  .page-header h1 { font-family: 'Nunito', sans-serif; font-size: 28px; font-weight: 900; color: var(--text-dark); margin-bottom: 4px; }
+  .page-header p { font-size: 14px; color: var(--text-light); }
+
+  /* LOADING / ERROR */
+  .state-overlay {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 340px; gap: 16px;
+  }
+  .spinner-lg { width: 44px; height: 44px; border: 3px solid rgba(37,99,192,0.15); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .state-overlay p { font-size: 15px; color: var(--text-light); }
+  .error-box { background: #FFF3F3; border: 1.5px solid #F5B8B8; border-radius: 14px; padding: 24px 28px; text-align: center; max-width: 480px; }
+  .error-box h3 { font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 800; color: #C04040; margin-bottom: 8px; }
+  .error-box p { font-size: 13px; color: #A04040; line-height: 1.6; }
+
+  /* STATS CARDS */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .stat-card {
+    background: white; border-radius: 18px; padding: 22px 24px;
+    box-shadow: var(--shadow); border: 1px solid var(--border);
+    animation: fadeUp 0.4s ease both;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .stat-card:nth-child(1) { animation-delay: 0.05s; }
+  .stat-card:nth-child(2) { animation-delay: 0.10s; }
+  .stat-card:nth-child(3) { animation-delay: 0.15s; }
+  .stat-card:nth-child(4) { animation-delay: 0.20s; }
+  .stat-card:nth-child(5) { animation-delay: 0.25s; }
+  .stat-icon { font-size: 26px; }
+  .stat-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-light); }
+  .stat-value { font-family: 'Nunito', sans-serif; font-size: 36px; font-weight: 900; color: var(--text-dark); line-height: 1; }
+  .stat-value.blue  { color: var(--blue); }
+  .stat-value.gold  { color: var(--gold); }
+  .stat-value.green { color: var(--green); }
+  .stat-sub { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+  /* CHARTS GRID */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+  .chart-card {
+    background: white; border-radius: 18px; padding: 24px;
+    box-shadow: var(--shadow); border: 1px solid var(--border);
+    animation: fadeUp 0.4s 0.2s ease both;
+  }
+  .chart-card.wide { grid-column: span 2; }
+  .chart-card h3 {
+    font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 800;
+    color: var(--text-dark); margin-bottom: 18px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* TABLE */
+  .table-card {
+    background: white; border-radius: 18px;
+    box-shadow: var(--shadow); border: 1px solid var(--border);
+    overflow: hidden; animation: fadeUp 0.4s 0.3s ease both;
+  }
+  .table-header {
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .table-header h3 { font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 800; color: var(--text-dark); display: flex; align-items: center; gap: 8px; }
+  .table-search {
+    padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dark);
+    background: #FAFBFE; outline: none; width: 240px; transition: border-color 0.2s;
+  }
+  .table-search:focus { border-color: var(--blue); }
+  .table-wrap { overflow-x: auto; max-height: 480px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { position: sticky; top: 0; z-index: 2; }
+  thead th {
+    background: var(--blue-dark); color: white;
+    padding: 11px 14px; font-family: 'Nunito', sans-serif;
+    font-weight: 700; font-size: 11px; letter-spacing: 0.06em;
+    text-transform: uppercase; text-align: left; white-space: nowrap;
+    cursor: pointer; user-select: none; transition: background 0.15s;
+  }
+  thead th:hover { background: var(--blue-mid); }
+  thead th .sort-arrow { opacity: 0.4; font-size: 10px; margin-left: 4px; }
+  thead th.sort-asc .sort-arrow::after  { content: ' ▲'; opacity: 1; }
+  thead th.sort-desc .sort-arrow::after { content: ' ▼'; opacity: 1; }
+  tbody tr { border-bottom: 1px solid #EEF2FA; transition: background 0.12s; }
+  tbody tr:hover { background: #F4F7FF; }
+  tbody td { padding: 10px 14px; color: var(--text-dark); }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 100px;
+  }
+  .badge-bronze { background: rgba(176,106,53,0.12); color: var(--bronze-c); }
+  .badge-prata  { background: rgba(122,143,160,0.14); color: #4A6070; }
+  .badge-ouro   { background: rgba(201,162,39,0.13); color: #8A6A10; }
+  .badge-none   { background: #F0F2F5; color: #8A9AAA; }
+  .table-empty  { text-align: center; padding: 40px; color: var(--text-light); font-style: italic; }
+  .table-footer { padding: 12px 24px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-light); background: #FAFBFE; }
+
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(12px)}  to{opacity:1;transform:translateY(0)} }
+  @keyframes spin     { to{transform:rotate(360deg)} }
+
+  @media (max-width: 900px) {
+    .charts-grid { grid-template-columns: 1fr 1fr; }
+    .chart-card.wide { grid-column: span 2; }
+  }
+  @media (max-width: 600px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-card.wide { grid-column: span 1; }
+    .topbar-title { display: none; }
+    .table-search { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <img src="https://corretoraamoravida.com.br/wp-content/uploads/2023/04/logo-amor-a-vida.svg"
+         alt="Amor à Vida"
+         onerror="this.style.display='none';document.getElementById('logo-fb').style.display='block'"/>
+    <span id="logo-fb" class="topbar-logo-fb">💙 Amor à Vida</span>
+  </div>
+  <div class="topbar-title">Dashboard de Simulações</div>
+  <div class="topbar-right">
+    <span class="last-update" id="lastUpdate">—</span>
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData()">
+      <span class="refresh-icon">↺</span> Atualizar
+    </button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-header">
+    <h1>📊 Dashboard de Simulações</h1>
+    <p>Acompanhe em tempo real os preenchimentos do simulador de plano de saúde</p>
+  </div>
+
+  <div id="mainContent">
+    <div class="state-overlay">
+      <div class="spinner-lg"></div>
+      <p>Carregando dados da planilha...</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQkOtp2z64m56EKh15F3v1Yr_7VtiWjjKeUlHOPr0IIfEy697OMOErwEE_3NbwtRI6eW1xUXQ4HAEuB/pub?gid=0&single=true&output=csv';
+
+let allRows = [];
+let sortCol = 0;
+let sortDir = 'desc';
+let searchTerm = '';
+let charts = {};
+
+// ══════════════════════════════
+// LOAD DATA
+// ══════════════════════════════
+async function loadData() {
+  const btn = document.getElementById('btnRefresh');
+  btn.classList.add('loading');
+
+  try {
+    const res  = await fetch(CSV_URL + '&t=' + Date.now());
+    const text = await res.text();
+    const rows = parseCSV(text);
+
+    allRows = rows.filter(r => r[1] && r[1].trim() && r[1].trim() !== 'Nome'); // remove header/empty
+
+    if (allRows.length === 0) {
+      showEmpty();
+    } else {
+      renderDashboard();
+    }
+
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent =
+      'Atualizado às ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+  } catch(err) {
+    showError(err);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+// ══════════════════════════════
+// CSV PARSER
+// ══════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  return lines.map(line => {
+    const cols = [];
+    let cur = ''; let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+// ══════════════════════════════
+// RENDER DASHBOARD
+// ══════════════════════════════
+function renderDashboard() {
+  // Columns: 0=Data/Hora 1=Nome 2=Admissão 3=Cargo 4=Faixa 5=Subsídio 6=Plano 7=ValorTitular 8=Dependentes 9=Total
+
+  const total      = allRows.length;
+  const comDep     = allRows.filter(r => r[8] && r[8] !== 'Nenhum' && r[8].trim() !== '').length;
+  const semInteresse = allRows.filter(r => (r[6]||'').toLowerCase().includes('sem interesse') || (r[6]||'').trim() === '').length;
+  const comPlano   = total - semInteresse;
+
+  // Planos
+  const planoCount = { bronze: 0, prata: 0, ouro: 0, nenhum: 0 };
+  allRows.forEach(r => {
+    const p = (r[6]||'').toLowerCase();
+    if (p.includes('bronze'))        planoCount.bronze++;
+    else if (p.includes('prata'))    planoCount.prata++;
+    else if (p.includes('ouro'))     planoCount.ouro++;
+    else                             planoCount.nenhum++;
+  });
+
+  // Faixas
+  const faixaCount = {};
+  allRows.forEach(r => {
+    const f = (r[4]||'').trim();
+    if (f) faixaCount[f] = (faixaCount[f]||0) + 1;
+  });
+
+  // Cargos
+  const cargoCount = {};
+  allRows.forEach(r => {
+    const c = (r[3]||'').trim();
+    if (c) cargoCount[c] = (cargoCount[c]||0) + 1;
+  });
+  const topCargos = Object.entries(cargoCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  const content = document.getElementById('mainContent');
+  content.innerHTML = `
+    <!-- STAT CARDS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">📋</div>
+        <div class="stat-label">Total de Simulações</div>
+        <div class="stat-value blue">${total}</div>
+        <div class="stat-sub">preenchimentos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">✅</div>
+        <div class="stat-label">Com Plano</div>
+        <div class="stat-value green">${comPlano}</div>
+        <div class="stat-sub">${total > 0 ? Math.round(comPlano/total*100) : 0}% do total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🥇</div>
+        <div class="stat-label">Plano Ouro</div>
+        <div class="stat-value gold">${planoCount.ouro}</div>
+        <div class="stat-sub">${comPlano > 0 ? Math.round(planoCount.ouro/comPlano*100) : 0}% dos planos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">👨‍👩‍👧</div>
+        <div class="stat-label">Com Dependentes</div>
+        <div class="stat-value blue">${comDep}</div>
+        <div class="stat-sub">${total > 0 ? Math.round(comDep/total*100) : 0}% do total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">❌</div>
+        <div class="stat-label">Sem Interesse</div>
+        <div class="stat-value" style="color:var(--text-light)">${semInteresse}</div>
+        <div class="stat-sub">${total > 0 ? Math.round(semInteresse/total*100) : 0}% do total</div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>🛡️ Planos Escolhidos</h3>
+        <div class="chart-wrap"><canvas id="chartPlanos"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>📅 Faixas Etárias</h3>
+        <div class="chart-wrap"><canvas id="chartFaixas"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>🏢 Top Cargos</h3>
+        <div class="chart-wrap"><canvas id="chartCargos"></canvas></div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-card">
+      <div class="table-header">
+        <h3>📋 Todos os Cadastros</h3>
+        <input class="table-search" type="text" placeholder="🔍 Buscar por nome, cargo, plano..."
+               oninput="searchTable(this.value)"/>
+      </div>
+      <div class="table-wrap">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th onclick="sortTable(0)">Data/Hora<span class="sort-arrow"></span></th>
+              <th onclick="sortTable(1)">Nome<span class="sort-arrow"></span></th>
+              <th onclick="sortTable(3)">Cargo<span class="sort-arrow"></span></th>
+              <th onclick="sortTable(4)">Faixa Etária<span class="sort-arrow"></span></th>
+              <th onclick="sortTable(5)">Subsídio<span class="sort-arrow"></span></th>
+              <th onclick="sortTable(6)">Plano<span class="sort-arrow"></span></th>
+              <th onclick="sortTable(7)">Valor Titular<span class="sort-arrow"></span></th>
+              <th onclick="sortTable(8)">Dependentes<span class="sort-arrow"></span></th>
+              <th onclick="sortTable(9)">Total Mensal<span class="sort-arrow"></span></th>
+            </tr>
+          </thead>
+          <tbody id="tablebody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer" id="tableFooter"></div>
+    </div>
+  `;
+
+  renderCharts(planoCount, faixaCount, topCargos);
+  renderTable();
+}
+
+// ══════════════════════════════
+// CHARTS
+// ══════════════════════════════
+function renderCharts(planoCount, faixaCount, topCargos) {
+  // Destroy old
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+
+  // Planos — Doughnut
+  charts.planos = new Chart(document.getElementById('chartPlanos'), {
+    type: 'doughnut',
+    data: {
+      labels: ['🥉 Bronze', '🥈 Prata', '🥇 Ouro', 'Sem interesse'],
+      datasets: [{
+        data: [planoCount.bronze, planoCount.prata, planoCount.ouro, planoCount.nenhum],
+        backgroundColor: ['#B06A35','#7A8FA0','#C9A227','#D0D8E8'],
+        borderWidth: 2, borderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 12 }, padding: 14, boxWidth: 12 } }
+      },
+      cutout: '62%'
+    }
+  });
+
+  // Faixas — Bar
+  const faixaOrder = ['0 a 18','19 a 23','24 a 28','29 a 33','34 a 38','39 a 43','44 a 48','49 a 53','54 a 58','59+'];
+  const faixaLabels = faixaOrder.filter(f => faixaCount[f]);
+  const faixaVals   = faixaLabels.map(f => faixaCount[f]||0);
+  charts.faixas = new Chart(document.getElementById('chartFaixas'), {
+    type: 'bar',
+    data: {
+      labels: faixaLabels,
+      datasets: [{
+        data: faixaVals,
+        backgroundColor: 'rgba(37,99,192,0.75)',
+        borderRadius: 6, borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 } } },
+        y: { grid: { color: '#EEF2FA' }, ticks: { font: { family: 'Inter', size: 11 }, stepSize: 1 }, beginAtZero: true }
+      }
+    }
+  });
+
+  // Cargos — Horizontal Bar
+  charts.cargos = new Chart(document.getElementById('chartCargos'), {
+    type: 'bar',
+    data: {
+      labels: topCargos.map(([k])=>k.length>22?k.slice(0,20)+'…':k),
+      datasets: [{
+        data: topCargos.map(([,v])=>v),
+        backgroundColor: [
+          'rgba(37,99,192,0.80)','rgba(26,74,138,0.75)','rgba(59,130,212,0.70)',
+          'rgba(201,162,39,0.75)','rgba(176,106,53,0.70)','rgba(26,138,74,0.70)',
+          'rgba(122,143,160,0.70)','rgba(15,44,94,0.65)'
+        ],
+        borderRadius: 6, borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#EEF2FA' }, ticks: { font: { family: 'Inter', size: 11 }, stepSize: 1 }, beginAtZero: true },
+        y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 } } }
+      }
+    }
+  });
+}
+
+// ══════════════════════════════
+// TABLE
+// ══════════════════════════════
+const COL_MAP = [0,1,3,4,5,6,7,8,9]; // thead col index → data col
+
+function planoBadge(plano) {
+  const p = (plano||'').toLowerCase();
+  if (p.includes('bronze')) return `<span class="badge badge-bronze">🥉 Bronze</span>`;
+  if (p.includes('prata'))  return `<span class="badge badge-prata">🥈 Prata</span>`;
+  if (p.includes('ouro'))   return `<span class="badge badge-ouro">🥇 Ouro</span>`;
+  return `<span class="badge badge-none">—</span>`;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tablebody');
+  const footer = document.getElementById('tableFooter');
+  if (!tbody) return;
+
+  let rows = [...allRows];
+
+  // Search
+  if (searchTerm) {
+    const q = searchTerm.toLowerCase();
+    rows = rows.filter(r => r.some(c => (c||'').toLowerCase().includes(q)));
+  }
+
+  // Sort
+  rows.sort((a,b) => {
+    const va = (a[sortCol]||'').toLowerCase();
+    const vb = (b[sortCol]||'').toLowerCase();
+    const n  = va.localeCompare(vb, 'pt-BR');
+    return sortDir === 'asc' ? n : -n;
+  });
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="table-empty">Nenhum resultado encontrado.</td></tr>`;
+    footer.textContent = '0 registros';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td style="white-space:nowrap;color:var(--text-light);font-size:12px;">${r[0]||'—'}</td>
+      <td style="font-weight:600;">${r[1]||'—'}</td>
+      <td>${r[3]||'—'}</td>
+      <td>${r[4]||'—'}</td>
+      <td style="text-align:center;">${r[5]||'—'}</td>
+      <td>${planoBadge(r[6])}</td>
+      <td style="font-weight:600;color:var(--blue);">${r[7]||'—'}</td>
+      <td style="max-width:200px;font-size:12px;color:var(--text-mid);">${r[8]&&r[8]!=='Nenhum'?'✅ '+r[8]:'—'}</td>
+      <td style="font-weight:700;color:var(--text-dark);">${r[9]||'—'}</td>
+    </tr>
+  `).join('');
+
+  footer.textContent = `${rows.length} registro${rows.length!==1?'s':''} encontrado${rows.length!==1?'s':''}`;
+
+  // Update sort arrows
+  document.querySelectorAll('thead th').forEach((th,i) => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (COL_MAP[i] === sortCol) th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+  });
+}
+
+function sortTable(col) {
+  if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortCol = col; sortDir = 'asc'; }
+  renderTable();
+}
+
+function searchTable(val) {
+  searchTerm = val;
+  renderTable();
+}
+
+// ══════════════════════════════
+// STATES
+// ══════════════════════════════
+function showEmpty() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="state-overlay">
+      <div style="font-size:52px;">📭</div>
+      <p style="font-size:16px;font-weight:600;color:var(--text-dark);">Nenhuma simulação ainda</p>
+      <p>Os dados aparecerão aqui assim que os primeiros formulários forem preenchidos.</p>
+    </div>`;
+}
+
+function showError(err) {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="state-overlay">
+      <div class="error-box">
+        <h3>⚠️ Erro ao carregar dados</h3>
+        <p>Verifique se a planilha está publicada corretamente no Google Sheets.<br><br>
+        <strong>Arquivo → Compartilhar → Publicar na web → Aba Respostas → CSV</strong><br><br>
+        <span style="font-size:11px;opacity:0.6;">${err}</span></p>
+      </div>
+    </div>`;
+}
+
+// Init
+loadData();
+</script>
+</body>
+</html>
