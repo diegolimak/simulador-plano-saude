@@ -602,7 +602,7 @@
   <div class="header">
     <div class="header-badge">💙 Corretora Amor à Vida</div>
     <h1>Simulador de <span>Plano de Saúde</span></h1>
-    <p>O colaborador passará a ter direito ao plano de saúde após completar 12 meses de contrato.</p>
+    <p>Descubra o plano ideal e veja exatamente quanto você pagará</p>
   </div>
 
   <!-- STEPS -->
@@ -696,6 +696,37 @@
         </div>
       </div>
       <div class="plans-grid" id="plansGrid"></div>
+
+      <!-- REDE CREDENCIADA -->
+      <div id="redeSection" style="display:none;margin-top:24px;">
+        <div id="redeToggle" onclick="toggleRede()" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:13px 18px;border:1.5px solid var(--border);border-radius:12px;background:var(--blue-pale);font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;color:var(--blue);user-select:none;">
+          🏥 <span>Ver rede credenciada do plano selecionado</span>
+          <span id="redeArrow" style="margin-left:auto;transition:transform 0.3s;">▼</span>
+        </div>
+        <div id="redeContent" style="display:none;margin-top:12px;border:1.5px solid var(--border);border-radius:14px;overflow:hidden;">
+          <div style="padding:14px 16px;background:#F7F9FD;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <span style="font-size:13px;font-weight:600;color:var(--text-mid);">Filtrar por região:</span>
+            <select id="filtroRegiao" onchange="renderRede()" style="padding:7px 32px 7px 10px;font-size:13px;border-radius:8px;border:1.5px solid var(--border);background:#FAFBFE;flex:1;min-width:140px;max-width:220px;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%233A4A6A' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 10px center;">
+              <option value="">Todas as regiões</option>
+            </select>
+          </div>
+          <div style="overflow-x:auto;max-height:340px;overflow-y:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr>
+                  <th style="position:sticky;top:0;background:var(--blue-dark);color:white;padding:10px 14px;font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.05em;text-align:left;white-space:nowrap;">Região</th>
+                  <th style="position:sticky;top:0;background:var(--blue-dark);color:white;padding:10px 14px;font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.05em;text-align:left;">Hospital / Laboratório</th>
+                  <th style="position:sticky;top:0;background:var(--blue-dark);color:white;padding:10px 14px;font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;text-align:center;">Bronze</th>
+                  <th style="position:sticky;top:0;background:var(--blue-dark);color:white;padding:10px 14px;font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;text-align:center;">Prata</th>
+                  <th style="position:sticky;top:0;background:var(--blue-dark);color:white;padding:10px 14px;font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;text-align:center;">Ouro</th>
+                </tr>
+              </thead>
+              <tbody id="redeTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div class="btn-row">
         <button class="btn-back" onclick="goBack(1)">← Voltar</button>
         <button class="btn-next" id="btnStep2Next" onclick="goToStep3()" disabled>Continuar →</button>
@@ -952,6 +983,74 @@ function renderPlans() {
   grid.appendChild(noDiv);
 }
 
+// ══════════════════════════════════════════
+// REDE CREDENCIADA
+// ══════════════════════════════════════════
+const REDE = [
+  { regiao:"Águas Claras",   hospital:"Águas Claras",                    bronze:true,  prata:true,  ouro:true  },
+  { regiao:"Asa Norte",      hospital:"Santa Helena",                    bronze:false, prata:false, ouro:false },
+  { regiao:"Asa Norte",      hospital:"Santa Lucia Norte",               bronze:false, prata:true,  ouro:true  },
+  { regiao:"Asa Sul",        hospital:"Hospital do Coração",             bronze:false, prata:false, ouro:false },
+  { regiao:"Asa Sul",        hospital:"DF Star",                         bronze:false, prata:false, ouro:false },
+  { regiao:"Asa Sul",        hospital:"Santa Luzia",                     bronze:false, prata:false, ouro:false },
+  { regiao:"Asa Sul",        hospital:"Alvorada",                        bronze:true,  prata:true,  ouro:true  },
+  { regiao:"Asa Sul",        hospital:"Home",                            bronze:false, prata:false, ouro:true  },
+  { regiao:"Asa Sul",        hospital:"Santa Lucia Sul",                 bronze:false, prata:false, ouro:true  },
+  { regiao:"Asa Sul",        hospital:"Pacini",                          bronze:false, prata:true,  ouro:true  },
+  { regiao:"Asa Sul",        hospital:"HOB",                             bronze:false, prata:false, ouro:false },
+  { regiao:"Asa Sul",        hospital:"Hospital PAI",                    bronze:false, prata:false, ouro:false },
+  { regiao:"Asa Sul",        hospital:"Sírio Libanes",                   bronze:false, prata:false, ouro:false },
+  { regiao:"Ceilândia",      hospital:"Achieta Ceilândia",               bronze:false, prata:true,  ouro:true  },
+  { regiao:"Ceilândia",      hospital:"Hospital das Clínicas e Fraturas",bronze:false, prata:false, ouro:false },
+  { regiao:"Cruzeiro",       hospital:"São Mateus",                      bronze:false, prata:false, ouro:true  },
+  { regiao:"Gama",           hospital:"Santa Lucia Gama",                bronze:false, prata:true,  ouro:true  },
+  { regiao:"Lago Sul",       hospital:"Hospital Brasília",               bronze:true,  prata:true,  ouro:true  },
+  { regiao:"Lago Sul",       hospital:"DAHER",                           bronze:false, prata:true,  ouro:true  },
+  { regiao:"Lago Sul",       hospital:"Hospital Urológico",              bronze:false, prata:true,  ouro:true  },
+  { regiao:"Sudoeste",       hospital:"Maternidade Brasília",            bronze:true,  prata:true,  ouro:true  },
+  { regiao:"Tag. Norte",     hospital:"Anchieta",                        bronze:false, prata:false, ouro:false },
+  { regiao:"Tag. Sul",       hospital:"Hospital Mantevida",              bronze:false, prata:true,  ouro:true  },
+  { regiao:"Tag. Sul",       hospital:"Santa Lucia Pistão Sul",          bronze:false, prata:true,  ouro:true  },
+  { regiao:"Tag. Sul",       hospital:"Santa Marta",                     bronze:false, prata:false, ouro:true  },
+  { regiao:"Todas Unidades", hospital:"Laboratório Sabin",               bronze:false, prata:true,  ouro:true  },
+  { regiao:"Todas Unidades", hospital:"Laboratório Exame",               bronze:true,  prata:true,  ouro:true  },
+];
+
+function toggleRede() {
+  const content = document.getElementById('redeContent');
+  const arrow   = document.getElementById('redeArrow');
+  const open    = content.style.display === 'block';
+  content.style.display = open ? 'none' : 'block';
+  arrow.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+function renderRede() {
+  const filtro = document.getElementById('filtroRegiao').value;
+  const tbody  = document.getElementById('redeTbody');
+  let rows = filtro ? REDE.filter(r => r.regiao === filtro) : REDE;
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:#aaa;font-style:italic;">Nenhum hospital encontrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr style="border-bottom:1px solid #EEF2FA;">
+      <td style="padding:9px 14px;"><span style="display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:100px;background:var(--blue-pale);color:var(--blue);">${r.regiao}</span></td>
+      <td style="padding:9px 14px;color:var(--text-dark);">${r.hospital}</td>
+      <td style="padding:9px 14px;text-align:center;">${r.bronze ? '<span style="color:#1A8A4A;font-size:16px;">✔</span>' : '<span style="color:#ccc;">—</span>'}</td>
+      <td style="padding:9px 14px;text-align:center;">${r.prata  ? '<span style="color:#1A8A4A;font-size:16px;">✔</span>' : '<span style="color:#ccc;">—</span>'}</td>
+      <td style="padding:9px 14px;text-align:center;">${r.ouro   ? '<span style="color:#1A8A4A;font-size:16px;">✔</span>' : '<span style="color:#ccc;">—</span>'}</td>
+    </tr>
+  `).join('');
+}
+
+function initRedeFilters() {
+  const regioes = [...new Set(REDE.map(r => r.regiao))].sort();
+  const sel = document.getElementById('filtroRegiao');
+  sel.innerHTML = '<option value="">Todas as regiões</option>';
+  regioes.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; sel.appendChild(o); });
+  renderRede();
+}
+
 function selectPlan(key) {
   state.planoSelecionado = key;
   ['bronze','prata','ouro','nenhum'].forEach(k => {
@@ -959,6 +1058,15 @@ function selectPlan(key) {
     if (el) el.classList.toggle('selected', k === key);
   });
   document.getElementById('btnStep2Next').disabled = false;
+  const redeSection = document.getElementById('redeSection');
+  if (key !== 'nenhum') {
+    redeSection.style.display = 'block';
+    initRedeFilters();
+  } else {
+    redeSection.style.display = 'none';
+    document.getElementById('redeContent').style.display = 'none';
+    document.getElementById('redeArrow').style.transform = 'rotate(0deg)';
+  }
 }
 
 // ══════════════════════════════════════════
@@ -1239,11 +1347,9 @@ async function sendToSheets() {
   };
 
   try {
-    await fetch(SCRIPT_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const form = new FormData();
+    form.append('data', JSON.stringify(payload));
+    await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: form });
     document.getElementById('sendingState').classList.remove('show');
     document.getElementById('savedBadge').classList.add('show');
   } catch (err) {
